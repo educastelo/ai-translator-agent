@@ -1,0 +1,13 @@
+services:
+  ai-translator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-translator-agent
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
