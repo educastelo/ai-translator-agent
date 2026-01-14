@@ -1,72 +1,150 @@
 # 🌐 AI Translator Agent
 
-Um agente de tradução inteligente baseado em IA que traduz, corrige gramática e melhora a clareza de textos em qualquer idioma. A aplicação gera automaticamente traduções para **Português (Brasil)**, **Espanhol** e **Inglês**, com detecção automática de e-mails e formatação adequada.
+Um agente de tradução inteligente com **sistema híbrido de IA**: usa a API Groq (rápida e gratuita) como principal e faz fallback automático para modelo local na GPU quando o limite diário é atingido.
 
 ## ✨ Funcionalidades
 
+- **🔄 Sistema Híbrido**: Groq como principal, Ollama (GPU local) como fallback automático
 - **Tradução Multi-idioma**: Recebe texto em qualquer idioma e traduz para PT-BR, ES e EN
 - **Correção Gramatical**: Corrige automaticamente erros gramaticais e melhora a sintaxe
 - **Melhoria de Clareza**: Aprimora a fluidez e clareza do texto mantendo o sentido original
-- **Detecção de E-mails**: Identifica automaticamente e-mails e formata com saudação, corpo e despedida apropriados
+- **Detecção de E-mails**: Identifica automaticamente e-mails e formata com saudação, corpo e despedida
 - **Interface Web Moderna**: Interface intuitiva construída com Streamlit
 - **Histórico de Conversas**: Mantém o contexto das traduções anteriores na sessão
 
-## 🚀 Pré-requisitos
+## 🏗️ Arquitetura
 
-- **Docker** e **Docker Compose** instalados
-- **Chave de API da Groq** ([obtenha aqui](https://console.groq.com/keys))
+```
+┌─────────────────────────────────────────────────────┐
+│                    Usuário                          │
+│                       │                             │
+│                       ▼                             │
+│              ┌─────────────────┐                    │
+│              │   Streamlit     │                    │
+│              │   (Interface)   │                    │
+│              └────────┬────────┘                    │
+│                       │                             │
+│         ┌─────────────┼─────────────┐               │
+│         ▼                           ▼               │
+│   ┌───────────┐              ┌───────────┐          │
+│   │   Groq    │  ──fallback──▶│  Ollama   │          │
+│   │  (Cloud)  │              │  (Local)  │          │
+│   │           │              │   GPU     │          │
+│   └───────────┘              └───────────┘          │
+│    Principal                   Backup               │
+└─────────────────────────────────────────────────────┘
+```
+
+## 🖥️ Requisitos de Hardware
+
+| Componente | Mínimo | Recomendado |
+|------------|--------|-------------|
+| GPU NVIDIA | 8GB VRAM | 12GB+ VRAM |
+| RAM | 16GB | 32GB |
+| CPU | Qualquer x64 | Ryzen 5000+ / Intel 10th+ |
+
+> ✅ **Testado com**: RTX 3060 12GB, 32GB RAM, Ryzen 5800X
+
+## 🚀 Pré-requisitos de Software
+
+1. **Docker** e **Docker Compose** instalados
+2. **NVIDIA Driver** atualizado (versão 525+)
+3. **NVIDIA Container Toolkit** instalado
+4. **Chave de API da Groq** (gratuita): [console.groq.com/keys](https://console.groq.com/keys)
+
+### Instalar NVIDIA Container Toolkit (se necessário)
+
+```bash
+# Adicionar repositório NVIDIA
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+# Instalar
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+
+# Configurar Docker
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+
+# Verificar instalação
+docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
+```
 
 ## 📦 Instalação
 
-1. **Clone o repositório** (ou navegue até o diretório do projeto):
+1. **Clone ou navegue até o diretório do projeto**:
 ```bash
 cd ai-translator-agent
 ```
 
-2. **Crie o arquivo `.env`** na raiz do projeto:
+2. **Crie o arquivo `.env`** com sua chave da Groq:
 ```bash
 echo 'GROQ_API_KEY=sua_chave_aqui' > .env
 ```
 
-   Ou crie manualmente o arquivo `.env` com o seguinte conteúdo:
-```
-GROQ_API_KEY=sua_chave_da_groq_aqui
-```
+   > 📝 Obtenha sua chave gratuita em: [console.groq.com/keys](https://console.groq.com/keys)
 
-   > ⚠️ **Importante**: Substitua `sua_chave_da_groq_aqui` pela sua chave de API real da Groq.
-
-## 🏃 Como Executar
-
-### Usando Docker Compose (Recomendado)
-
-1. **Construa e inicie o container**:
-```bash
-docker compose up --build
-```
-
-2. **Acesse a aplicação**:
-   - Abra seu navegador e acesse: `http://localhost:5000`
-   - Se estiver usando WSL, você pode precisar usar o IP do WSL: `http://172.30.242.142:5000` (substitua pelo IP do seu WSL)
-
-3. **Para executar em background** (detached mode):
+3. **Inicie os containers**:
 ```bash
 docker compose up -d --build
 ```
 
-### Comandos Úteis
+4. **Baixe o modelo de fallback** (primeira execução):
+```bash
+docker exec -it ollama ollama pull qwen2.5:7b-instruct
+```
 
-- **Ver logs**: `docker compose logs -f`
-- **Parar a aplicação**: `docker compose down`
-- **Reiniciar**: `docker compose restart`
-- **Ver status**: `docker compose ps`
+5. **Acesse a aplicação**:
+   - Abra: `http://localhost:5000`
+   - Se estiver no WSL: use o IP do WSL (`hostname -I`)
+
+## 🏃 Como Usar
+
+### Comandos Principais
+
+```bash
+# Iniciar a aplicação
+docker compose up -d
+
+# Ver logs da aplicação
+docker compose logs -f ai-translator
+
+# Ver logs do Ollama
+docker compose logs -f ollama
+
+# Parar tudo
+docker compose down
+
+# Reiniciar
+docker compose restart
+
+# Reconstruir após mudanças
+docker compose up -d --build
+```
+
+### Verificar Status
+
+```bash
+# Status dos containers
+docker compose ps
+
+# Uso da GPU
+nvidia-smi
+
+# Modelos carregados no Ollama
+docker exec -it ollama ollama list
+```
 
 ## 📁 Estrutura do Projeto
 
 ```
 ai-translator-agent/
-├── agent.py              # Aplicação principal Streamlit
+├── agent.py              # Aplicação principal (Groq + Ollama)
 ├── Dockerfile            # Configuração da imagem Docker
-├── docker-compose.yml    # Orquestração dos containers
+├── docker-compose.yml    # Orquestração (app + Ollama)
 ├── requirements.txt      # Dependências Python
 ├── .env                  # Variáveis de ambiente (criar manualmente)
 └── README.md             # Esta documentação
@@ -76,27 +154,41 @@ ai-translator-agent/
 
 - **Python 3.11**: Linguagem de programação
 - **Streamlit 1.40.0**: Framework para interface web
-- **Groq API**: API de IA para processamento de linguagem natural
-- **Docker**: Containerização da aplicação
-- **python-dotenv**: Gerenciamento de variáveis de ambiente
+- **Groq API**: Backend principal (cloud, rápido, limites diários)
+- **Ollama**: Backend de fallback (local, GPU)
+- **Qwen2.5 7B**: Modelo local para tradução
+- **Llama 3.3 70B**: Modelo cloud via Groq
+- **Docker**: Containerização
+- **NVIDIA CUDA**: Aceleração por GPU
 
-## 💡 Como Usar
+## ⚙️ Configuração Avançada
 
-1. **Acesse a interface web** em `http://localhost:5000`
+### Modelos Disponíveis
 
-2. **Digite ou cole um texto** em qualquer idioma no campo de entrada
+**Groq (cloud)**:
+| Modelo | Descrição |
+|--------|-----------|
+| `llama-3.3-70b-versatile` | **Padrão** - Melhor qualidade |
+| `llama-3.1-8b-instant` | Mais rápido, menos preciso |
+| `mixtral-8x7b-32768` | Boa alternativa |
 
-3. **Aguarde o processamento** - o agente irá:
-   - Corrigir erros gramaticais
-   - Melhorar a clareza
-   - Gerar traduções para os três idiomas (PT-BR, ES, EN)
+**Ollama (local)**:
+| Modelo | VRAM | Uso |
+|--------|------|-----|
+| `qwen2.5:7b-instruct` | ~4.4GB | **Padrão** - Melhor para tradução |
+| `qwen2.5:3b-instruct` | ~2GB | Mais leve |
+| `llama3.2:8b-instruct` | ~4.5GB | Alternativa |
 
-4. **Para e-mails**: Se você colar um e-mail, o agente detectará automaticamente e formatará com:
-   - Saudação apropriada
-   - Corpo da mensagem
-   - Despedida (sem incluir seu nome, pois a assinatura é adicionada automaticamente)
+### Trocar Modelos
 
-## 📝 Exemplo de Uso
+Edite as variáveis no `docker-compose.yml`:
+```yaml
+environment:
+  - GROQ_MODEL=llama-3.3-70b-versatile  # Modelo Groq
+  - OLLAMA_MODEL=qwen2.5:7b-instruct     # Modelo local
+```
+
+## 💡 Exemplo de Uso
 
 **Entrada:**
 ```
@@ -117,40 +209,85 @@ Hello, I would like to send an email to my boss about the project delay.
 
 ## 🐛 Troubleshooting
 
-### Problema: "Connection reset by peer" ao acessar
+### Groq: "Rate limit exceeded"
 
-**Solução**: 
-- Verifique se o container está rodando: `docker compose ps`
-- Verifique os logs: `docker compose logs`
-- Certifique-se de que a porta 5000 não está sendo usada por outro processo
+**Isso é normal!** Quando o limite diário do Groq é atingido, o sistema automaticamente usa o modelo local (Ollama).
 
-### Problema: "API Key não encontrada"
+Para evitar:
+- Use menos requisições
+- Espere o reset diário (meia-noite UTC)
+- O fallback para Ollama é automático
 
-**Solução**:
-- Verifique se o arquivo `.env` existe na raiz do projeto
-- Confirme que o arquivo contém: `GROQ_API_KEY=sua_chave_aqui`
-- Reinicie o container: `docker compose restart`
+### Ollama: "Modelo não carregado"
 
-### Problema: Erro ao inicializar cliente Groq
+```bash
+# Baixar o modelo
+docker exec -it ollama ollama pull qwen2.5:7b-instruct
 
-**Solução**:
-- Verifique se sua chave de API está correta
-- Reconstrua a imagem: `docker compose up --build`
-- Verifique se há problemas de conectividade com a API da Groq
+# Verificar modelos
+docker exec -it ollama ollama list
+```
 
+### Ollama: "Container unhealthy"
 
-## 🔒 Segurança
+```bash
+# Aguardar inicialização (pode levar 30-60s)
+docker compose ps
 
-- **Nunca commite o arquivo `.env`** no controle de versão
-- Mantenha sua chave de API segura e privada
-- O arquivo `.env` já deve estar no `.gitignore`
+# Verificar logs
+docker compose logs ollama
+```
+
+### GPU não detectada
+
+```bash
+# Verificar driver NVIDIA
+nvidia-smi
+
+# Reinstalar NVIDIA Container Toolkit (ver seção de pré-requisitos)
+
+# Reiniciar Docker
+sudo systemctl restart docker
+```
+
+### Aplicação não abre (WSL)
+
+```bash
+# Descobrir IP do WSL
+hostname -I
+
+# Acessar pelo IP, ex: http://172.30.242.142:5000
+```
+
+## 📊 Monitoramento
+
+```bash
+# GPU em tempo real
+watch -n 1 nvidia-smi
+
+# Logs em tempo real
+docker compose logs -f
+
+# Status dos containers
+docker compose ps
+```
+
+## 🔒 Privacidade e Custos
+
+| Backend | Privacidade | Custo | Limite |
+|---------|-------------|-------|--------|
+| Groq | Dados vão para cloud | Gratuito | ~14.400 req/dia |
+| Ollama | 100% local | Gratuito | Ilimitado |
+
+- ✅ Quando Groq atinge o limite, usa automaticamente Ollama (100% local)
+- ✅ Seus dados só saem da máquina quando usando Groq
 
 ## 📄 Licença
 
 Este projeto é de uso pessoal/educacional.
 
-## 🤝 Contribuindo
-
-Sinta-se à vontade para abrir issues ou pull requests com melhorias!
-
 ---
+
+**Desenvolvido com ❤️ usando Streamlit, Groq e Ollama**
+
+*Sistema híbrido: velocidade do cloud + privacidade do local!* 🚀

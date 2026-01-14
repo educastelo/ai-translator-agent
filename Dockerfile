@@ -12,5 +12,4 @@ COPY . /app
 
 EXPOSE 5000
 
-CMD ["streamlit", "run", "agent.py", "--server.port=5000", "--server.address=0.0.0.0"]
-
+CMD ["streamlit", "run", "agent.py", "--server.port=5000", "--server.address=0.0.0.0", "--server.headless=true"]
