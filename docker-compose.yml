@@ -1,32 +1,4 @@
 services:
-  # Servidor Ollama com suporte a GPU (fallback local)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - OLLAMA_NUM_PARALLEL=2
-      - OLLAMA_MAX_LOADED_MODELS=1
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 10s
-      timeout: 30s
-      retries: 10
-      start_period: 30s
-
-  # Aplicação Streamlit
   ai-translator:
     build:
       context: .
@@ -38,13 +10,5 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_MODEL=qwen2.5:7b-instruct
       - GROQ_MODEL=llama-3.3-70b-versatile
-    depends_on:
-      ollama:
-        condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  ollama_data:
